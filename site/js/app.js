@@ -174,6 +174,19 @@
   }
   function markTab(name) {
     $$(".tab").forEach((t) => t.classList.toggle("on", t.dataset.tab === name));
+    moveIndicator();
+  }
+
+  /* «капля» liquid glass под активной вкладкой */
+  function moveIndicator() {
+    var bar = $("#tabbar"), ind = $("#tab-ind");
+    if (!bar || !ind) return;
+    var on = bar.querySelector(".tab.on");
+    if (!on) { ind.classList.remove("on"); return; }
+    var left = on.offsetLeft;
+    ind.style.setProperty("--w", on.offsetWidth + "px");
+    ind.style.setProperty("--x", left + "px");
+    ind.classList.add("on");
   }
 
   /* ---------------- состояние вида ---------------- */
@@ -183,7 +196,7 @@
   const routes = {
     home: viewHome, catalog: viewCatalog, favorites: viewFavorites,
     cart: viewCart, checkout: viewCheckout, contacts: viewContacts,
-    configurator: viewConfigurator
+    configurator: viewConfigurator, master: viewMaster, contract: viewContract
   };
 
   function readHashParams() {
@@ -250,6 +263,20 @@
 <div class="sec">
   <div class="sec-head"><h2>${ICON.bolt(18)} Скидки и спецпредложения</h2><a class="more" href="#/catalog?cat=all">Все →</a></div>
   <div class="grid-cards">${fresh.map(cardHTML).join("")}</div>
+</div>
+
+<div class="sec">
+  <div class="grid-cards">
+    <a class="card cat-card" href="#/master">
+      <span class="ico">${ICON.gear()}</span>
+      <b>Вызвать мастера</b><span>Ремонт от 990 ₽</span></a>
+    <a class="card cat-card" href="#/contract">
+      <span class="ico">${ICON.shield()}</span>
+      <b>Служба по контракту</b><span>${esc(CONTRACT.pay)}</span></a>
+    <a class="card cat-card" href="#/catalog?cat=parts">
+      <span class="ico">${ICON.gear()}</span>
+      <b>Комплектующие</b><span>Видеокарты и БП</span></a>
+  </div>
 </div>
 
 <div class="sec">
@@ -634,6 +661,252 @@
       <a class="btn ghost block" href="#/home">На главную</a>`;
   }
 
+  /* ================= РЕКЛАМА (раз в 2 минуты, ролик случайный) ================= */
+  const AD = {
+    every: 120000,   // показывать раз в 2 минуты
+    showFor: 14000,  // сколько висит
+    items: [
+      {
+        video: "ad/ad.mp4", poster: "img/ad-poster.jpg",
+        title: "Куманцов ПК .ru — лучшие сборки",
+        note: "Подпишись на канал и получи промокод SUMMER10"
+      },
+      {
+        video: "ad/ad2.mp4", poster: "img/ad-poster2.jpg",
+        title: "Скидки дня в Куманцов ПК",
+        note: "Компьютеры от 990 ₽ — остатки со склада"
+      }
+    ]
+  };
+  let adShownAt = 0, adOpen = false, adCloseTimer = null, adTickTimer = null, lastAdIdx = -1;
+
+  /* случайный ролик, но не тот же, что в прошлый раз */
+  function pickAd() {
+    if (AD.items.length === 1) return 0;
+    var i;
+    do { i = Math.floor(Math.random() * AD.items.length); } while (i === lastAdIdx);
+    lastAdIdx = i;
+    return i;
+  }
+
+  function showAd() {
+    if (adOpen) return;
+    adOpen = true;
+
+    var it = AD.items[pickAd()] || AD.items[0];
+
+    var ov = document.createElement("div");
+    ov.className = "ad-overlay";
+    ov.id = "ad-overlay";
+    ov.innerHTML =
+      '<div class="ad-box">' +
+        '<span class="ad-tag">РЕКЛАМА</span>' +
+        '<button class="ad-close" id="ad-x" aria-label="Закрыть">' +
+          '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>' +
+        '<div class="ad-media">' +
+          '<img src="' + it.poster + '" alt="">' +
+          '<video id="ad-video" src="' + it.video + '" autoplay muted loop playsinline preload="auto" webkit-playsinline></video>' +
+          '<span class="ad-timer" id="ad-timer"></span>' +
+        '</div>' +
+        '<div class="ad-foot">' +
+          '<b>' + esc(it.title) + '</b>' +
+          '<span>' + esc(it.note) + '</span>' +
+          '<button class="btn sm ghost block ad-skip" id="ad-skip">Скрыть рекламу</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(ov);
+
+    var left = Math.round(AD.showFor / 1000);
+    var tm = $("#ad-timer");
+    tm.textContent = "закроется через " + left + " с";
+
+    var v = $("#ad-video");
+    function startVideo() {
+      if (!v || !v.src) return;
+      try { v.currentTime = 0; } catch (e) { }
+      try { v.muted = true; } catch (e) { }
+      var pr = v.play();
+      if (pr && pr.catch) {
+        pr.catch(function () {
+          // автозапуск заблокирован — пробуем ещё раз по факту готовности
+          v.addEventListener("canplay", function () { try { v.play(); } catch (e) { } }, { once: true });
+        });
+      }
+    }
+    if (v.readyState >= 2) startVideo();
+    else v.addEventListener("loadeddata", startVideo, { once: true });
+    v.addEventListener("error", function () {
+      // видео не пошло — оставляем постер, чтобы не было тёмного квадрата
+      tm.textContent = "видео недоступно";
+    });
+    // если за 2,5 с видео так и не тронулось — показываем постер вместо чёрного поля
+    setTimeout(function () {
+      if (v && v.currentTime === 0 && v.readyState < 2) tm.textContent = "видео недоступно";
+    }, 2500);
+
+    var sec = setInterval(function () {
+      left--;
+      if (left <= 0) { clearInterval(sec); return; }
+      tm.textContent = "закроется через " + left + " с";
+    }, 1000);
+
+    function hide() { clearInterval(adCloseTimer); clearInterval(sec); closeAd(); }
+    adCloseTimer = setInterval(function () {
+      try { v.pause(); } catch (e) { }
+      hide();
+    }, AD.showFor);
+
+    $("#ad-x").onclick = hide;
+    $("#ad-skip").onclick = hide;
+    ov.addEventListener("click", function (e) { if (e.target === ov) hide(); });
+    haptic();
+  }
+
+  function closeAd() {
+    var ov = $("#ad-overlay");
+    if (ov && ov.parentNode) ov.parentNode.removeChild(ov);
+    adOpen = false;
+  }
+
+  function adTick() {
+    if (document.hidden || adOpen) return;
+    if (!adShownAt) { adShownAt = Date.now(); return; }
+    if (Date.now() - adShownAt >= AD.every) { adShownAt = Date.now(); showAd(); }
+  }
+
+  function startAdLoop() {
+    if (adTickTimer) clearInterval(adTickTimer);
+    adShownAt = Date.now();
+    adTickTimer = setInterval(adTick, 5000);
+  }
+
+  document.addEventListener("visibilitychange", function () {
+    if (document.hidden) {
+      if (adTickTimer) { clearInterval(adTickTimer); adTickTimer = null; }
+      closeAd();
+    } else startAdLoop();
+  });
+
+  /* ================= ЭКРАН: МАСТЕР ================= */
+  let mForm = { name: "", phone: "", when: "" };
+
+  function viewMaster(v) {
+    v.innerHTML = `
+      <section class="hero" style="margin-bottom:14px">
+        <span class="pill"><i class="dot"></i>${esc(MASTER.workHours)}</span>
+        <h1 style="font-size:26px">Вызвать<br><span>мастера</span></h1>
+        <p class="lead">Диагностика бесплатно, ремонт в день обращения, гарантия 6 месяцев. Позвоните — мастер перезвонит ${esc(MASTER.responseTime)}.</p>
+        <div class="hero-cta">
+          <a class="btn primary" href="tel:${esc(SHOP.phoneHref)}">${ICON.phone(19)}${esc(SHOP.phone)}</a>
+          <a class="btn ghost" href="#/contacts">${ICON.pin(19)}Контакты</a>
+        </div>
+      </section>
+
+      <div class="sec-head"><h2>Услуги</h2><p>${SERVICES.length} направления</p></div>
+      ${SERVICES.map((s) => `
+        <div class="svc-card" data-svc="${s.id}">
+          <img class="photo" src="${esc(s.img)}" alt="${esc(s.name)}" data-art="#31c8ff" draggable="false">
+          <div class="svc-body">
+            <div class="t"><b>${esc(s.name)}</b><em>${esc(s.price)}</em></div>
+            <p>${esc(s.short)}</p>
+            <ul class="svc-list">
+              ${s.items.map((i) => `<li>${ICON.check(15)}<span>${esc(i)}</span></li>`).join("")}
+            </ul>
+            <p class="svc-note">${esc(s.note)}</p>
+          </div>
+        </div>`).join("")}
+
+      <div class="sec">
+        <div class="sec-head"><h2>Почему нас зовут</h2></div>
+        <div class="panel">
+          ${MASTER.why.map((w, i) => `<div class="step"><span class="n">${i + 1}</span><div><b>${esc(w.t)}</b><span>${esc(w.d)}</span></div></div>${i < MASTER.why.length - 1 ? '<hr class="sep">' : ''}`).join("")}
+        </div>
+      </div>
+
+      <div class="sec">
+        <div class="sec-head"><h2>Заявка на мастера</h2><p>ответим ${esc(MASTER.responseTime)}</p></div>
+        <div class="panel">
+          <div class="field"><label>Имя *</label><input id="m-name" value="${esc(mForm.name)}" placeholder="Иван" autocomplete="off"><div class="err">Укажите имя</div></div>
+          <div class="field"><label>Телефон *</label><input id="m-phone" type="tel" value="${esc(mForm.phone)}" placeholder="+7 900 000-00-00" autocomplete="off"><div class="err">Введите корректный номер</div></div>
+          <div class="field"><label>Что случилось</label><textarea id="m-when" placeholder="Не включается, гудит, пахнет горелым…">${esc(mForm.when)}</textarea></div>
+          <button class="btn green block" id="m-send">${ICON.phone(19)}Вызвать мастера</button>
+          <p class="note" style="text-align:center">Заявка остаётся в приложении, мастер перезвонит ${esc(MASTER.responseTime)}.</p>
+        </div>
+      </div>`;
+
+    $("#m-send").onclick = function () {
+      var n = $("#m-name").value.trim();
+      var p = $("#m-phone").value.trim();
+      var ok = true;
+      if (n.length < 2) { $("#m-name").parentNode.classList.add("bad"); ok = false; } else $("#m-name").parentNode.classList.remove("bad");
+      if (p.replace(/\D/g, "").length < 10) { $("#m-phone").parentNode.classList.add("bad"); ok = false; } else $("#m-phone").parentNode.classList.remove("bad");
+      if (!ok) { toast("Проверьте имя и телефон", "err"); return; }
+      mForm = { name: n, phone: p, when: $("#m-when").value.trim() };
+      S.masterRequests = (S.masterRequests || 0) + 1;
+      save(); haptic();
+      toast("Заявка принята, мастер перезвонит " + MASTER.responseTime, "ok");
+      openShareSheet("Заявка на мастера — " + SHOP.domain + "\n" + n + ", " + p +
+        (mForm.when ? "\n" + mForm.when : ""));
+    };
+  }
+
+  /* ================= ЭКРАН: КОНТРАКТ ================= */
+  let cForm = { name: "", phone: "", city: "" };
+
+  function viewContract(v) {
+    v.innerHTML = `
+      <a class="backlink" href="#/home">${ICON.back()}На главную</a>
+
+      <div class="contract-hero">
+        <img class="photo" src="${esc(CONTRACT.img)}" alt="${esc(CONTRACT.title)}" data-art="#00ffa3" draggable="false">
+        <div class="veil">
+          <h1>${esc(CONTRACT.title)}</h1>
+          <p>${esc(CONTRACT.lead)}</p>
+        </div>
+      </div>
+
+      <div class="pay-badge"><span>Выплата</span><b>${esc(CONTRACT.pay)}</b></div>
+
+      <div class="terms">
+        ${CONTRACT.terms.map((t, i) => `<div class="term"><span class="ti">${i + 1}</span><div><b>${esc(t.t)}</b><span>${esc(t.d)}</span></div></div>`).join("")}
+      </div>
+
+      <div class="sec">
+        <div class="sec-head"><h2>Заявка на контракт</h2></div>
+        <div class="panel">
+          <div class="field"><label>Имя и фамилия *</label><input id="c-name" value="${esc(cForm.name)}" placeholder="Васильевна" autocomplete="off"><div class="err">Укажите имя</div></div>
+          <div class="field"><label>Телефон *</label><input id="c-phone" type="tel" value="${esc(cForm.phone)}" placeholder="+7 900 000-00-00" autocomplete="off"><div class="err">Введите корректный номер</div></div>
+          <div class="field"><label>Город</label><input id="c-city" value="${esc(cForm.city)}" placeholder="г. Москва" autocomplete="off"></div>
+          <button class="btn green block" id="c-send">${ICON.check(19)}Оставить заявку</button>
+          <p class="note" style="text-align:center">Заявка сохраняется в приложении. Компьютер выдаётся лично, форму — на почте.</p>
+        </div>
+      </div>
+
+      <div class="sec">
+        <div class="sec-head"><h2>${ICON.tag(14)} Образец объявления</h2></div>
+        <div class="svc-card" style="cursor:default">
+          <img class="photo" src="img/po-kontraktu.jpg" alt="Образец объявления" data-art="#ff3d81" draggable="false">
+        </div>
+      </div>
+
+      <a class="btn ghost block" href="#/catalog" style="margin-top:12px">${ICON.grid(18)}Смотреть компьютеры</a>`;
+
+    $("#c-send").onclick = function () {
+      var n = $("#c-name").value.trim();
+      var p = $("#c-phone").value.trim();
+      var ok = true;
+      if (n.length < 2) { $("#c-name").parentNode.classList.add("bad"); ok = false; } else $("#c-name").parentNode.classList.remove("bad");
+      if (p.replace(/\D/g, "").length < 10) { $("#c-phone").parentNode.classList.add("bad"); ok = false; } else $("#c-phone").parentNode.classList.remove("bad");
+      if (!ok) { toast("Проверьте имя и телефон", "err"); return; }
+      cForm = { name: n, phone: p, city: $("#c-city").value.trim() };
+      S.contractRequests = (S.contractRequests || 0) + 1;
+      save(); haptic();
+      toast("Заявка на контракт принята", "ok");
+      openShareSheet("Заявка на службу по контракту — " + SHOP.domain + "\n" +
+        n + ", " + p + (cForm.city ? ", " + cForm.city : "") + "\nВыплата: " + CONTRACT.pay);
+    };
+  }
+
   /* ================= ЭКРАН: КОНТАКТЫ ================= */
   function viewContacts(v) {
     v.innerHTML = `
@@ -881,4 +1154,7 @@
   badges();
   if (!location.hash) location.hash = "#/home";
   go();
+  moveIndicator();
+  startAdLoop();
+  window.addEventListener("resize", moveIndicator);
 })();
