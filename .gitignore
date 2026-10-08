@@ -1,0 +1,7 @@
+# Временные файлы сборки и ОС
+dist/*.idsig
+kumanpc-build/
+*.log
+.DS_Store
+Thumbs.db
+desktop.ini

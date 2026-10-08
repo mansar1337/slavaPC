@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- мягкое свечение -->
+    <path android:pathData="M54,14 a40,40 0 1,0 0.1,0 z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="radial"
+                android:centerX="54" android:centerY="52"
+                android:gradientRadius="40">
+                <item android:offset="0.0" android:color="#338B5CFF" />
+                <item android:offset="1.0" android:color="#008B5CFF" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- корпус ПК -->
+    <path
+        android:pathData="M42,26 h24 a4,4 0 0 1 4,4 v48 a4,4 0 0 1 -4,4 h-24 a4,4 0 0 1 -4,-4 v-48 a4,4 0 0 1 4,-4 z"
+        android:fillColor="#0A0C14"
+        android:fillAlpha="0.9"
+        android:strokeColor="#4A5570"
+        android:strokeWidth="1.4" />
+
+    <!-- RGB-полоса корпуса -->
+    <path android:pathData="M42,32 h2.8 v44 h-2.8 z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="42" android:startY="32"
+                android:endX="44.8" android:endY="76">
+                <item android:offset="0.0" android:color="#FF00FFA3" />
+                <item android:offset="0.5" android:color="#FF31C8FF" />
+                <item android:offset="1.0" android:color="#FFFF3D81" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- кнопка питания -->
+    <path android:pathData="M65,75 a2,2 0 1,0 0.1,0 z" android:fillColor="#31C8FF" />
+
+    <!-- монограмма К -->
+    <path
+        android:pathData="M47,34 L52,34 L52,50 L63,34 L68,34 L56,54 L68,74 L63,74 L52,58 L52,74 L47,74 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="47" android:startY="34"
+                android:endX="68" android:endY="74">
+                <item android:offset="0.0" android:color="#FF00FFA3" />
+                <item android:offset="0.34" android:color="#FF31C8FF" />
+                <item android:offset="0.68" android:color="#FF8B5CFF" />
+                <item android:offset="1.0" android:color="#FFFF3D81" />
+            </gradient>
+        </aapt:attr>
+    </path>
+</vector>
