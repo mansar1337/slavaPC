@@ -423,6 +423,20 @@ hr.sep{border:0;border-top:1px solid var(--line);margin:20px 0}
   font-weight:900;letter-spacing:.7px;color:#07080d;background:linear-gradient(120deg,#00ffa3,#31c8ff)}
 .ad-timer{position:absolute;left:12px;bottom:12px;z-index:2;padding:5px 10px;border-radius:9px;font-size:11px;
   font-weight:700;background:rgba(10,12,20,.66);border:1px solid rgba(255,255,255,.2)}
+.ad-sound{position:absolute;right:12px;bottom:12px;z-index:2;width:38px;height:38px;border-radius:13px;
+  display:grid;place-items:center;cursor:pointer;color:#fff;
+  background:rgba(10,12,20,.66);border:1px solid rgba(255,255,255,.24);
+  -webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
+.ad-sound svg{width:19px;height:19px}
+.ad-sound.off{color:#ffb4c8;border-color:rgba(255,92,138,.45)}
+/* надпись поверх ролика — в духе мемов про свадьбу */
+.ad-caption{position:absolute;left:10px;right:10px;bottom:58px;z-index:2;
+  padding:8px 12px;border-radius:13px;text-align:center;
+  font-size:13.5px;font-weight:900;letter-spacing:.2px;color:#fff;
+  text-shadow:0 2px 8px rgba(0,0,0,.95),0 0 2px rgba(0,0,0,1);
+  background:linear-gradient(180deg,rgba(10,12,20,.62),rgba(10,12,20,.38));
+  border:1px solid rgba(255,255,255,.26);
+  -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
 .ad-foot{padding:13px 14px 14px}
 .ad-foot b{display:block;font-size:14px;margin-bottom:3px}
 .ad-foot span{font-size:12px;color:var(--muted)}

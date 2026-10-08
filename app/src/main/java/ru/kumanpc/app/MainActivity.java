@@ -52,6 +52,11 @@ public class MainActivity extends Activity {
         MIME.put("svg", "image/svg+xml");
         MIME.put("woff2", "font/woff2");
         MIME.put("ico", "image/x-icon");
+        MIME.put("mp4", "video/mp4");
+        MIME.put("webm", "video/webm");
+        MIME.put("ogv", "video/ogg");
+        MIME.put("m4v", "video/mp4");
+        MIME.put("m4a", "audio/mp4");
     }
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -131,13 +136,42 @@ public class MainActivity extends Activity {
                 // ответов часть версий WebView ломает декодирование картинок
                 String enc = isText(mime) ? "utf-8" : null;
 
+                // видео WebView грузит диапазонами (Range) — без поддержки
+                // большой ролик может зависнуть и не стартовать
+                int status = 200;
+                String contentRange = null;
+                String range = req.getRequestHeaders() == null ? null : req.getRequestHeaders().get("Range");
+                if (range != null && range.startsWith("bytes=") && data.length > 0) {
+                    long total = data.length;
+                    long start = 0, end = total - 1;
+                    try {
+                        String spec = range.substring(6).trim();
+                        int dash = spec.indexOf('-');
+                        if (dash > 0) {
+                            start = Long.parseLong(spec.substring(0, dash).trim());
+                            String tail = spec.substring(dash + 1).trim();
+                            if (tail.length() > 0) end = Math.min(Long.parseLong(tail), total - 1);
+                        }
+                        if (start < total && end >= start) {
+                            byte[] part = new byte[(int) (end - start + 1)];
+                            System.arraycopy(data, (int) start, part, 0, part.length);
+                            data = part;
+                            status = 206;
+                            contentRange = "bytes " + start + "-" + end + "/" + total;
+                        }
+                    } catch (Throwable ignored) { }
+                }
+
                 WebResourceResponse r = new WebResourceResponse(mime, enc,
                         new ByteArrayInputStream(data));
-                r.setStatusCodeAndReasonPhrase(200, "OK");
+                r.setStatusCodeAndReasonPhrase(status, status == 206 ? "Partial Content" : "OK");
 
                 Map<String, String> h = new HashMap<String, String>();
                 h.put("Cache-Control", "no-cache, no-store, must-revalidate");
                 h.put("Content-Type", enc == null ? mime : mime + "; charset=" + enc);
+                h.put("Accept-Ranges", "bytes");
+                h.put("Content-Length", String.valueOf(data.length));
+                if (contentRange != null) h.put("Content-Range", contentRange);
                 r.setResponseHeaders(h);
                 return r;
             } catch (Throwable t) {

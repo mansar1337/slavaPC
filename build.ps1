@@ -11,8 +11,8 @@ param(
   [string]$Platform   = "android-34",
   [int]$MinSdk        = 26,
   [int]$TargetSdk     = 34,
-  [string]$VersionCode = "1",
-  [string]$VersionName = "1.0.0"
+  [string]$VersionCode = "1202",
+  [string]$VersionName = "1.20.2"
 )
 
 $ErrorActionPreference = 'Continue'
@@ -58,7 +58,13 @@ Step "prepare"
 Remove-Item $Stage -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force -Path "$Build\gen", "$Build\classes", "$Build\dex", $Dist | Out-Null
 Copy-Item $SrcApp $App -Recurse -Force
-Ok "sources -> $Stage"
+# версию задаём прямо в манифесте: флаги aapt2 не перебивают значения из AndroidManifest.xml
+$mFile = Join-Path $App "AndroidManifest.xml"
+$m = [IO.File]::ReadAllText($mFile)
+$m = [regex]::Replace($m, 'android:versionCode="\d+"', "android:versionCode=`"$VersionCode`"")
+$m = [regex]::Replace($m, 'android:versionName="[^"]*"', "android:versionName=`"$VersionName`"")
+[IO.File]::WriteAllText($mFile, $m, (New-Object Text.UTF8Encoding($false)))
+Ok "sources -> $Stage  (versionCode=$VersionCode versionName=$VersionName)"
 
 Step "1/5 aapt2 compile"
 Run $aapt2 @("compile", "--dir", (Join-Path $App "res"), "-o", "$Build\res.zip") "aapt2 compile"

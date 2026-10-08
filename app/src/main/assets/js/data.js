@@ -6,11 +6,11 @@ const SHOP = {
   domain: "kumanpc.ru",
   tagline: "Сборка ПК под ключ",
   paymentNote: "Оплата онлайн не проводится: заказ оформляется без списания средств.",
-  phone: "+7 900 000-00-00",            // <- свой телефон
-  phoneHref: "+79000000000",
-  telegram: "kumanpc",
-  telegramHref: "https://t.me/kumanpc",
-  whatsapp: "79000000000",
+  phone: "117",                      // номер для звонка
+  phoneHref: "117",
+  telegram: "kumancovPC",
+  telegramHref: "https://t.me/kumancovPC",
+  whatsapp: "117",
   email: "zakaz@kumanpc.ru",
   address: "Кабинет Елены Васильевны, безопасное место",
   workHours: "Ежедневно с 10:00 до 21:00",

@@ -663,22 +663,36 @@
 
   /* ================= РЕКЛАМА (раз в 2 минуты, ролик случайный) ================= */
   const AD = {
-    every: 120000,   // показывать раз в 2 минуты
-    showFor: 14000,  // сколько висит
+    every: 60000,    // показывать раз в минуту
+    capMs: 45000,    // страховка, если ролик не доиграет
     items: [
       {
         video: "ad/ad.mp4", poster: "img/ad-poster.jpg",
+        caption: "Лучшие сборки в Куманцов ПК",
         title: "Куманцов ПК .ru — лучшие сборки",
         note: "Подпишись на канал и получи промокод SUMMER10"
       },
       {
         video: "ad/ad2.mp4", poster: "img/ad-poster2.jpg",
+        caption: "Скидки дня",
         title: "Скидки дня в Куманцов ПК",
         note: "Компьютеры от 990 ₽ — остатки со склада"
+      },
+      {
+        video: "ad/ad3.mp4", poster: "img/ad-poster3.jpg",
+        caption: "Это свадьба Елены Васильевны",
+        title: "Это свадьба Елены Васильевны",
+        note: "Свадьба прошла, но рекламу отменить не удалось"
+      },
+      {
+        video: "ad/ad4.mp4", poster: "img/ad-poster4.jpg",
+        caption: "БОБИНЬ",
+        title: "БОБИНЬ",
+        note: "Бобинарь рекламного отдела КумАнцов ПК"
       }
     ]
   };
-  let adShownAt = 0, adOpen = false, adCloseTimer = null, adTickTimer = null, lastAdIdx = -1;
+  let adShownAt = 0, adOpen = false, adTickTimer = null, lastAdIdx = -1;
 
   /* случайный ролик, но не тот же, что в прошлый раз */
   function pickAd() {
@@ -705,8 +719,12 @@
           '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>' +
         '<div class="ad-media">' +
           '<img src="' + it.poster + '" alt="">' +
-          '<video id="ad-video" src="' + it.video + '" autoplay muted loop playsinline preload="auto" webkit-playsinline></video>' +
+          '<video id="ad-video" src="' + it.video + '" playsinline preload="auto" webkit-playsinline></video>' +
           '<span class="ad-timer" id="ad-timer"></span>' +
+          '<div class="ad-caption">' + esc(it.caption || it.title) + '</div>' +
+          '<button class="ad-sound" id="ad-sound" aria-label="Звук">' +
+            '<svg viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 5.5v13L7.5 14.5H4z"/>' +
+            '<path d="M15.5 9a4.2 4.2 0 0 1 0 6"/><path d="M18 6.5a8 8 0 0 1 0 11"/></svg></button>' +
         '</div>' +
         '<div class="ad-foot">' +
           '<b>' + esc(it.title) + '</b>' +
@@ -716,23 +734,85 @@
       '</div>';
     document.body.appendChild(ov);
 
-    var left = Math.round(AD.showFor / 1000);
     var tm = $("#ad-timer");
-    tm.textContent = "закроется через " + left + " с";
+    var v = $("#ad-video");
+    var snd = $("#ad-sound");
+    var cap = null, endTimer = null;
+
+    // ролик играет до конца, потом закрывается
+    function armCap() {
+      if (cap) clearTimeout(cap);
+      cap = setTimeout(function () { try { v.pause(); } catch (e) { } hide(); }, AD.capMs);
+    }
+    function hide() {
+      if (cap) clearTimeout(cap);
+      if (endTimer) clearTimeout(endTimer);
+      try { v.pause(); } catch (e) { }
+      closeAd();
+    }
+
+    tm.textContent = "реклама";
+    v.addEventListener("loadedmetadata", function () {
+      var d = Math.ceil(v.duration || 0);
+      if (d > 0) tm.textContent = "осталось " + d + " с";
+    });
+    v.addEventListener("timeupdate", function () {
+      if (!v.duration) return;
+      var left = Math.ceil(v.duration - v.currentTime);
+      tm.textContent = left > 0 ? "осталось " + left + " с" : "реклама";
+    });
+    v.addEventListener("ended", function () {
+      if (cap) clearTimeout(cap);
+      endTimer = setTimeout(hide, 900);
+    });
 
     var v = $("#ad-video");
+    var snd = $("#ad-sound");
+
     function startVideo() {
       if (!v || !v.src) return;
       try { v.currentTime = 0; } catch (e) { }
-      try { v.muted = true; } catch (e) { }
+      try { v.volume = 1; } catch (e) { }
+
+      // сначала пробуем со звуком
+      v.muted = false;
       var pr = v.play();
       if (pr && pr.catch) {
         pr.catch(function () {
-          // автозапуск заблокирован — пробуем ещё раз по факту готовности
-          v.addEventListener("canplay", function () { try { v.play(); } catch (e) { } }, { once: true });
+          // автозапуск со звуком запрещён системой — откатываемся на беззвучный
+          v.muted = true;
+          paintSound();
+          var p2 = v.play();
+          if (p2 && p2.catch) {
+            p2.catch(function () {
+              v.addEventListener("canplay", function () { try { v.play(); } catch (e) { } }, { once: true });
+            });
+          }
         });
       }
     }
+
+    function paintSound() {
+      if (!snd || !v) return;
+      var on = !v.muted;
+      snd.innerHTML = on
+        ? '<svg viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 5.5v13L7.5 14.5H4z"/>' +
+          '<path d="M15.5 9a4.2 4.2 0 0 1 0 6"/><path d="M18 6.5a8 8 0 0 1 0 11"/></svg>'
+        : '<svg viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 5.5v13L7.5 14.5H4z"/>' +
+          '<path d="M16 10l4 4M20 10l-4 4"/></svg>';
+      snd.classList.toggle("off", !on);
+    }
+
+    if (snd) {
+      snd.onclick = function () {
+        if (!v) return;
+        v.muted = !v.muted;
+        if (!v.muted) { try { v.play(); } catch (e) { } }
+        paintSound();
+      };
+      paintSound();
+    }
+
     if (v.readyState >= 2) startVideo();
     else v.addEventListener("loadeddata", startVideo, { once: true });
     v.addEventListener("error", function () {
@@ -744,17 +824,7 @@
       if (v && v.currentTime === 0 && v.readyState < 2) tm.textContent = "видео недоступно";
     }, 2500);
 
-    var sec = setInterval(function () {
-      left--;
-      if (left <= 0) { clearInterval(sec); return; }
-      tm.textContent = "закроется через " + left + " с";
-    }, 1000);
-
-    function hide() { clearInterval(adCloseTimer); clearInterval(sec); closeAd(); }
-    adCloseTimer = setInterval(function () {
-      try { v.pause(); } catch (e) { }
-      hide();
-    }, AD.showFor);
+    armCap();
 
     $("#ad-x").onclick = hide;
     $("#ad-skip").onclick = hide;
@@ -914,7 +984,8 @@
       <div class="contact-card"><span class="ci">${ICON.phone()}</span><div><b>${esc(SHOP.phone)}</b><span>Звонок бесплатный</span></div>
         <a class="icon-btn" href="tel:${esc(SHOP.phoneHref)}" style="margin-left:auto">${ICON.phone(19)}</a></div>
       <div class="contact-card"><span class="ci">${ICON.tg()}</span><div><b>@${esc(SHOP.telegram)}</b><span>Ответим в Telegram</span></div>
-        <a class="icon-btn" href="${esc(SHOP.telegramHref)}" style="margin-left:auto">${ICON.tg(19)}</a></div>
+        <a class="icon-btn" href="${esc(SHOP.telegramHref)}" style="margin-left:auto">${ICON.tg(19)}</a>
+        <a class="icon-btn" href="${esc(SHOP.telegramHref)}" style="margin-left:6px">${ICON.tg(19)}</a></div>
       <div class="contact-card"><span class="ci">${ICON.wa()}</span><div><b>WhatsApp</b><span>Сообщения и фото комплектующих</span></div>
         <a class="icon-btn" href="https://wa.me/${esc(SHOP.whatsapp)}" style="margin-left:auto">${ICON.wa(19)}</a></div>
       <div class="contact-card"><span class="ci">${ICON.mail()}</span><div><b>${esc(SHOP.email)}</b><span>Для юрлиц и документов</span></div>
